@@ -44,3 +44,4 @@ Para cambiarla, modifica `VITE_ADMIN_PASSWORD` en el `.env`
 - `/` - Vista del carrusel (público)
 - `/admin` - Panel de administración (requiere contraseña)
 # Publicidad-FT
+# Publicidad-FT
