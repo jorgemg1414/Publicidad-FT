@@ -20,7 +20,7 @@
     <header class="header">
       <div class="header-logo">
         <img src="/ft-icono.png" alt="Logo" class="logo-icon">
-        <span class="farm-name"><span class="farm-text">Farmacia</span> <span class="tep-text">Tepa</span></span>
+        <span class="farm-name">Farmacia Tepa</span>
       </div>
       <div class="header-right">
         <span class="material-icon location-icon">language</span>
@@ -188,14 +188,6 @@ onUnmounted(() => {
 .farm-name {
   font-size: 1.5rem;
   font-weight: bold;
-}
-
-.farm-text {
-  color: #ff8c00;
-}
-
-.tep-text {
-  color: #64b5f6;
 }
 
 .header-right {
