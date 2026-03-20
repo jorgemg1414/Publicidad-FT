@@ -23,8 +23,13 @@
         <span class="farm-name">Farmacia Tepa</span>
       </div>
       <div class="header-right">
-        <span class="material-icon location-icon">language</span>
-        <span class="address">Visita: farmaciatepa.com.mx</span>
+        <div class="header-info">
+          <div class="header-web">
+            <span class="material-icon location-icon">language</span>
+            <span class="address">Visita: farmaciatepa.com.mx</span>
+          </div>
+          <span class="clock">{{ currentTime }}</span>
+        </div>
       </div>
     </header>
 
@@ -44,6 +49,17 @@ const currentIndex = ref(0)
 const loading = ref(true)
 const config = ref({ interval: 5000, transition: 1000 })
 let timer = null
+let clockTimer = null
+const currentTime = ref('')
+
+const updateTime = () => {
+  currentTime.value = new Date().toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  })
+}
 
 const currentImage = computed(() => images.value[currentIndex.value] || null)
 
@@ -100,10 +116,13 @@ watch(config, () => {
 
 onMounted(() => {
   fetchData()
+  updateTime()
+  clockTimer = setInterval(updateTime, 1000)
 })
 
 onUnmounted(() => {
   stopTimer()
+  if (clockTimer) clearInterval(clockTimer)
 })
 </script>
 
@@ -202,6 +221,25 @@ onUnmounted(() => {
 
 .address {
   font-size: 1.3rem;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.header-web {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clock {
+  font-size: 1.1rem;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 .footer {
