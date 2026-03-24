@@ -61,6 +61,15 @@ export function useImages() {
     await fetchImages()
   }
 
+  const togglePriority = async (id, currentValue) => {
+    if (!isConfigured || !supabase) return
+    await supabase
+      .from('images')
+      .update({ priority: !currentValue })
+      .eq('id', id)
+    await fetchImages()
+  }
+
   const deleteImage = async (id, url) => {
     if (!isConfigured || !supabase) return
     const fileName = url.split('/').pop()
@@ -96,6 +105,7 @@ export function useImages() {
     fetchImages,
     uploadImage,
     deleteImage,
+    togglePriority,
     saveConfig
   }
 }

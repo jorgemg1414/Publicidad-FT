@@ -4,18 +4,20 @@
     <div v-if="loading && images.length === 0" class="loading">
       <p>Cargando...</p>
     </div>
-    <Transition v-else name="fade" mode="out-in">
-      <img 
-        v-if="currentImage" 
-        :key="currentImage.id" 
-        :src="currentImage.url" 
-        :alt="currentImage.name"
-        class="carousel-image"
-      />
-      <div v-else class="no-images">
-        <p>No hay imágenes</p>
-      </div>
-    </Transition>
+    <div class="carousel-content">
+      <Transition name="fade" mode="out-in">
+        <img 
+          v-if="currentImage" 
+          :key="currentImage.id" 
+          :src="currentImage.url" 
+          :alt="currentImage.name"
+          class="carousel-image"
+        />
+        <div v-else class="no-images">
+          <p>No hay imágenes</p>
+        </div>
+      </Transition>
+    </div>
     
     <header class="header">
       <div class="header-logo">
@@ -40,12 +42,43 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 const API_URL = import.meta.env.VITE_API_URL || 'http://10.20.0.186:3000'
 
 const images = ref([])
+const playlist = ref([])
 const currentIndex = ref(0)
 const loading = ref(true)
 const config = ref({ interval: 5000, transition: 1000 })
 let timer = null
+let pollTimer = null
 
-const currentImage = computed(() => images.value[currentIndex.value] || null)
+const buildPlaylist = (imgs) => {
+  const normal = imgs.filter(i => !i.priority)
+  const preferred = imgs.filter(i => i.priority)
+  if (preferred.length === 0) return imgs
+  
+  const list = []
+  let prefIndex = 0
+  
+  for (let i = 0; i < normal.length; i++) {
+    list.push(normal[i])
+    if ((i + 1) % 10 === 0) {
+      list.push(preferred[prefIndex % preferred.length])
+      prefIndex++
+    }
+  }
+  
+  return list
+}
+
+const currentImage = computed(() => playlist.value[currentIndex.value] || null)
+
+const fetchImages = async () => {
+  try {
+    const data = await fetch(`${API_URL}/api/images`).then(r => r.json())
+    images.value = data
+    playlist.value = buildPlaylist(data)
+  } catch (e) {
+    console.error('Error:', e)
+  }
+}
 
 const fetchData = async () => {
   try {
@@ -54,13 +87,21 @@ const fetchData = async () => {
       fetch(`${API_URL}/api/config`).then(r => r.json())
     ])
     images.value = imagesRes
+    playlist.value = buildPlaylist(imagesRes)
     config.value = configRes
     preLoadImages(imagesRes)
+    startTimer()
+    startPolling()
   } catch (e) {
     console.error('Error:', e)
   } finally {
     loading.value = false
   }
+}
+
+const startPolling = () => {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(fetchImages, 3000)
 }
 
 const preLoadImages = (imgs) => {
@@ -70,14 +111,14 @@ const preLoadImages = (imgs) => {
 }
 
 const nextImage = () => {
-  if (images.value.length > 0) {
-    currentIndex.value = (currentIndex.value + 1) % images.value.length
+  if (playlist.value.length > 0) {
+    currentIndex.value = (currentIndex.value + 1) % playlist.value.length
   }
 }
 
 const startTimer = () => {
   stopTimer()
-  if (images.value.length > 0) {
+  if (playlist.value.length > 0) {
     timer = setInterval(nextImage, config.value.interval)
   }
 }
@@ -86,14 +127,12 @@ const stopTimer = () => {
   if (timer) clearInterval(timer)
 }
 
-watch(images, (newImages) => {
-  if (newImages.length > 0) {
-    startTimer()
-  }
-})
+const stopPolling = () => {
+  if (pollTimer) clearInterval(pollTimer)
+}
 
 watch(config, () => {
-  if (images.value.length > 0) {
+  if (playlist.value.length > 0) {
     startTimer()
   }
 }, { deep: true })
@@ -104,6 +143,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopTimer()
+  stopPolling()
 })
 </script>
 
@@ -142,12 +182,23 @@ onUnmounted(() => {
   background-position: 0 0, 15px 15px;
 }
 
+.carousel-content {
+  position: absolute;
+  top: 4.5rem;
+  bottom: 3.5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 1rem;
+}
+
 .carousel-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  position: relative;
-  z-index: 10;
 }
 
 .no-images,

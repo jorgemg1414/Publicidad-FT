@@ -173,6 +173,28 @@ app.delete('/api/images', authenticate, async (req, res) => {
   }
 })
 
+app.put('/api/images/:id/priority', authenticate, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    const { priority } = req.body
+    console.log(`Actualizando prioridad de imagen ${id} a ${priority}`)
+
+    const { data, error } = await supabase
+      .from('images')
+      .update({ priority })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    console.log('Prioridad actualizada:', data)
+    res.json(data)
+  } catch (e) {
+    console.error('Error al actualizar prioridad:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.put('/api/config', authenticate, async (req, res) => {
   try {
     const { interval, transition } = req.body

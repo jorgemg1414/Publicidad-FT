@@ -32,13 +32,23 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { supabase, isConfigured } from '../supabase'
 
 const images = ref([])
+const playlist = ref([])
 const currentIndex = ref(0)
 const isLoaded = ref(false)
 const config = ref({ interval: 10000, transition: 1000 })
 const error = ref(null)
 let timer = null
 
-const currentImage = computed(() => images.value[currentIndex.value] || null)
+const buildPlaylist = (imgs) => {
+  const list = []
+  imgs.forEach(img => {
+    const times = img.priority ? 3 : 1
+    for (let i = 0; i < times; i++) list.push(img)
+  })
+  return list
+}
+
+const currentImage = computed(() => playlist.value[currentIndex.value] || null)
 
 const fetchData = async () => {
   try {
@@ -50,6 +60,7 @@ const fetchData = async () => {
     if (fetchError) throw fetchError
     if (data) {
       images.value = data
+      playlist.value = buildPlaylist(data)
       preLoadImages(data)
     }
 
@@ -75,14 +86,14 @@ const preLoadImages = (imgs) => {
 }
 
 const nextImage = () => {
-  if (images.value.length > 0) {
-    currentIndex.value = (currentIndex.value + 1) % images.value.length
+  if (playlist.value.length > 0) {
+    currentIndex.value = (currentIndex.value + 1) % playlist.value.length
   }
 }
 
 const startTimer = () => {
   stopTimer()
-  if (images.value.length > 0) {
+  if (playlist.value.length > 0) {
     timer = setInterval(nextImage, config.value.interval)
   }
 }
@@ -92,6 +103,7 @@ const stopTimer = () => {
 }
 
 watch(images, (newImages) => {
+  playlist.value = buildPlaylist(newImages)
   if (newImages.length > 0 && !timer) {
     startTimer()
   }
@@ -116,7 +128,7 @@ onUnmounted(stopTimer)
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   background: #000;
   display: flex;
   align-items: center;
@@ -125,8 +137,11 @@ onUnmounted(stopTimer)
 }
 
 .carousel-image {
-  max-width: 100%;
-  max-height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 

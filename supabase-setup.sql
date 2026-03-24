@@ -5,8 +5,12 @@ CREATE TABLE images (
   id SERIAL PRIMARY KEY,
   url TEXT NOT NULL,
   name TEXT,
+  priority BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Si la tabla ya existe, agregar la columna con:
+-- ALTER TABLE images ADD COLUMN IF NOT EXISTS priority BOOLEAN DEFAULT FALSE;
 
 -- Tabla para la configuración
 CREATE TABLE config (

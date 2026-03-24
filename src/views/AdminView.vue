@@ -87,12 +87,20 @@
             No hay imágenes. Sube algunas arriba.
           </div>
           <div v-else class="images-grid">
-            <div v-for="img in images" :key="img.id" class="image-card">
+            <div v-for="img in images" :key="img.id" class="image-card" :class="{ priority: img.priority }">
               <img :src="img.url" :alt="img.name" />
               <div class="image-info">
                 <span class="image-name">{{ img.name }}</span>
-                <button @click="removeImage(img)" class="btn-delete">Eliminar</button>
+                <div class="image-actions">
+                  <button
+                    @click="togglePriority(img.id, img.priority)"
+                    class="btn-priority"
+                    :class="{ active: img.priority }"
+                  >{{ img.priority ? 'PREF ✓' : 'PREF' }}</button>
+                  <button @click="removeImage(img)" class="btn-delete">Eliminar</button>
+                </div>
               </div>
+
             </div>
           </div>
         </section>
@@ -106,7 +114,7 @@ import { ref } from 'vue'
 import { useImages } from '../composables/useImages'
 import { isConfigured } from '../supabase'
 
-const { images, loading, config, uploadImage, deleteImage, saveConfig } = useImages()
+const { images, loading, config, uploadImage, deleteImage, togglePriority, saveConfig } = useImages()
 const isDragover = ref(false)
 const uploadError = ref('')
 const fileInput = ref(null)
@@ -378,8 +386,13 @@ section.disabled {
 .image-info {
   padding: 0.75rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.image-actions {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .image-name {
@@ -399,5 +412,32 @@ section.disabled {
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
+}
+
+.btn-priority {
+  background: #2a2a50;
+  color: #bbb;
+  border: 1px solid #666;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-priority:hover {
+  color: #f5c518;
+  border-color: #f5c518;
+}
+
+.btn-priority.active {
+  color: #f5c518;
+  border-color: #f5c518;
+  background: rgba(245, 197, 24, 0.1);
+}
+
+.image-card.priority {
+  box-shadow: 0 0 0 2px #f5c518;
 }
 </style>

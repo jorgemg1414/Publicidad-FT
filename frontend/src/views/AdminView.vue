@@ -94,14 +94,22 @@
             No hay imágenes. Sube algunas arriba.
           </div>
           <div v-else class="images-grid">
-            <div v-for="img in images" :key="img.id" class="image-card">
-              <img :src="img.url" :alt="img.name" />
+            <div v-for="img in imagesList" :key="img.id" class="image-card" :class="{ preferred: img.priority }">
+              <div class="image-wrapper">
+                <img :src="img.url" :alt="img.name" />
+                <div v-if="img.priority" class="priority-badge">★ x3</div>
+              </div>
               <div class="image-info">
                 <span class="image-name">{{ img.name }}</span>
-                <button v-if="confirmingDelete !== img.id" @click="confirmingDelete = img.id" class="btn-delete">Eliminar</button>
-                <div v-else class="confirm-buttons">
-                  <button @click="confirmingDelete = null" class="btn-cancel-delete">✕</button>
-                  <button @click="deleteImage(img.id, img.url); confirmingDelete = null" class="btn-confirm-delete">✓</button>
+                <div class="image-actions">
+                  <button @click="togglePriority(img)" class="btn-priority" :class="{ active: img.priority }" :title="img.priority ? 'Quitar preferencia - Se muestra 3 veces' : 'Marcar como preferida - Se mostrará 3 veces más'">
+                    {{ img.priority ? '★ Preferida' : '☆ Preferencia' }}
+                  </button>
+                  <button v-if="confirmingDelete !== img.id" @click="confirmingDelete = img.id" class="btn-delete">Eliminar</button>
+                  <div v-else class="confirm-buttons">
+                    <button @click="confirmingDelete = null" class="btn-cancel-delete">✕</button>
+                    <button @click="deleteImage(img.id, img.url); confirmingDelete = null" class="btn-confirm-delete">✓</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -114,11 +122,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://10.20.0.186:3000'
 
 const images = ref([])
+const imagesList = computed(() => images.value)
 const loading = ref(false)
 const config = ref({ interval: 5000, transition: 1000 })
 const isDragover = ref(false)
@@ -254,6 +263,38 @@ const handleDrop = (e) => {
 
 const handleFileSelect = (e) => {
   handleFiles(e.target.files)
+}
+
+const togglePriority = async (img) => {
+  const newPriority = !img.priority
+  
+  images.value = images.value.map(i => 
+    i.id === img.id ? { ...i, priority: newPriority } : i
+  )
+
+  try {
+    const res = await fetch(`${API_URL}/api/images/${img.id}/priority`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.value}`
+      },
+      body: JSON.stringify({ priority: newPriority })
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      images.value = images.value.map(i => 
+        i.id === img.id ? { ...i, priority: !newPriority } : i
+      )
+      if (err.error === 'Token inválido' || err.error === 'Token requerido') {
+        logout()
+      }
+    }
+  } catch (e) {
+    images.value = images.value.map(i => 
+      i.id === img.id ? { ...i, priority: !newPriority } : i
+    )
+  }
 }
 
 const confirmDeleteAll = async () => {
@@ -546,9 +587,18 @@ section h2 {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.image-card.preferred {
+  border: 2px solid #f1c40f;
+  box-shadow: 0 2px 12px rgba(241, 196, 15, 0.3);
+}
+
 .image-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.image-wrapper {
+  position: relative;
 }
 
 .image-card img {
@@ -557,12 +607,53 @@ section h2 {
   object-fit: cover;
 }
 
+.priority-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #f1c40f;
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .image-info {
   padding: 0.75rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: #f8f9fa;
+}
+
+.image-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-priority {
+  background: #e0e0e0;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.3s, color 0.3s;
+  color: #666;
+  white-space: nowrap;
+}
+
+.btn-priority:hover {
+  background: #f1c40f;
+  color: #fff;
+}
+
+.btn-priority.active {
+  background: #f1c40f;
+  color: #fff;
 }
 
 .image-name {
