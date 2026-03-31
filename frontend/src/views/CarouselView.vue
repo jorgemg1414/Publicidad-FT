@@ -40,6 +40,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://10.20.0.186:3000'
+const CACHE_KEY = 'publicidad_data_cache'
+const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 horas en ms
 
 const images = ref([])
 const playlist = ref([])
@@ -53,10 +55,10 @@ const buildPlaylist = (imgs) => {
   const normal = imgs.filter(i => !i.priority)
   const preferred = imgs.filter(i => i.priority)
   if (preferred.length === 0) return imgs
-  
+
   const list = []
   let prefIndex = 0
-  
+
   for (let i = 0; i < normal.length; i++) {
     list.push(normal[i])
     if ((i + 1) % 10 === 0) {
@@ -64,32 +66,65 @@ const buildPlaylist = (imgs) => {
       prefIndex++
     }
   }
-  
+
   return list
 }
 
 const currentImage = computed(() => playlist.value[currentIndex.value] || null)
 
-const fetchImages = async () => {
+const loadFromCache = () => {
   try {
-    const data = await fetch(`${API_URL}/api/images`).then(r => r.json())
-    images.value = data
-    playlist.value = buildPlaylist(data)
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const { timestamp, images: imgs, config: cfg } = JSON.parse(raw)
+    if (Date.now() - timestamp > CACHE_DURATION) return null
+    return { images: imgs, config: cfg }
+  } catch {
+    return null
+  }
+}
+
+const saveToCache = (imgs, cfg) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      images: imgs,
+      config: cfg,
+    }))
+  } catch {}
+}
+
+const fetchAndRefresh = async () => {
+  try {
+    const [imagesRes, configRes] = await Promise.all([
+      fetch(`${API_URL}/api/images`).then(r => r.json()),
+      fetch(`${API_URL}/api/config`).then(r => r.json()),
+    ])
+    images.value = imagesRes
+    playlist.value = buildPlaylist(imagesRes)
+    config.value = configRes
+    await preLoadImages(imagesRes)
+    saveToCache(imagesRes, configRes)
   } catch (e) {
-    console.error('Error:', e)
+    console.error('Error actualizando imágenes:', e)
   }
 }
 
 const fetchData = async () => {
   try {
-    const [imagesRes, configRes] = await Promise.all([
-      fetch(`${API_URL}/api/images`).then(r => r.json()),
-      fetch(`${API_URL}/api/config`).then(r => r.json())
-    ])
-    images.value = imagesRes
-    playlist.value = buildPlaylist(imagesRes)
-    config.value = configRes
-    preLoadImages(imagesRes)
+    const cached = loadFromCache()
+    if (cached) {
+      images.value = cached.images
+      playlist.value = buildPlaylist(cached.images)
+      config.value = cached.config
+      await preLoadImages(cached.images)
+      loading.value = false
+      startTimer()
+      startPolling()
+      return
+    }
+
+    await fetchAndRefresh()
     startTimer()
     startPolling()
   } catch (e) {
@@ -101,13 +136,19 @@ const fetchData = async () => {
 
 const startPolling = () => {
   if (pollTimer) clearInterval(pollTimer)
-  pollTimer = setInterval(fetchImages, 3000)
+  // Actualizar cada 24 horas
+  pollTimer = setInterval(fetchAndRefresh, CACHE_DURATION)
 }
 
 const preLoadImages = (imgs) => {
-  imgs.forEach(img => {
-    new Image().src = img.url
-  })
+  return Promise.all(
+    imgs.map(img => new Promise((resolve) => {
+      const image = new Image()
+      image.onload = resolve
+      image.onerror = resolve
+      image.src = img.url
+    }))
+  )
 }
 
 const nextImage = () => {

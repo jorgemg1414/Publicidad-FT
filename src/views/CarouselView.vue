@@ -59,9 +59,8 @@ const fetchData = async () => {
     
     if (fetchError) throw fetchError
     if (data) {
+      await preLoadImages(data)
       images.value = data
-      playlist.value = buildPlaylist(data)
-      preLoadImages(data)
     }
 
     const { data: cfg } = await supabase
@@ -78,11 +77,14 @@ const fetchData = async () => {
 }
 
 const preLoadImages = (imgs) => {
-  imgs.forEach(img => {
-    const preload = new Image()
-    preload.src = img.url
-  })
-  isLoaded.value = true
+  return Promise.all(
+    imgs.map(img => new Promise((resolve) => {
+      const image = new Image()
+      image.onload = resolve
+      image.onerror = resolve
+      image.src = img.url
+    }))
+  ).then(() => { isLoaded.value = true })
 }
 
 const nextImage = () => {
