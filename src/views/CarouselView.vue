@@ -2,7 +2,7 @@
   <div class="carousel-container">
     <div v-if="!isConfigured" class="setup-message">
       <p>⚙️ Configuración requerida</p>
-      <small>Añade las credenciales de Supabase en el archivo .env</small>
+      <small>Añade VITE_API_URL en el archivo .env</small>
     </div>
     <div v-else-if="error" class="error-message">
       <p>⚠️ Error de conexión</p>
@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { supabase, isConfigured } from '../supabase'
+import { api, isConfigured } from '../api'
 
 const images = ref([])
 const playlist = ref([])
@@ -52,23 +52,13 @@ const currentImage = computed(() => playlist.value[currentIndex.value] || null)
 
 const fetchData = async () => {
   try {
-    const { data, error: fetchError } = await supabase
-      .from('images')
-      .select('*')
-      .order('created_at', { ascending: true })
-    
-    if (fetchError) throw fetchError
+    const data = await api.getImages()
     if (data) {
       await preLoadImages(data)
       images.value = data
     }
 
-    const { data: cfg } = await supabase
-      .from('config')
-      .select('*')
-      .eq('id', 1)
-      .single()
-    
+    const cfg = await api.getConfig()
     if (cfg) config.value = cfg
   } catch (e) {
     console.error('Error cargando datos:', e)

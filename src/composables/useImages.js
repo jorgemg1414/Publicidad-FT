@@ -1,5 +1,5 @@
 import { ref, onMounted } from 'vue'
-import { supabase, isConfigured } from '../supabase'
+import { api, isConfigured } from '../api'
 
 export function useImages() {
   const images = ref([])
@@ -10,87 +10,51 @@ export function useImages() {
   })
 
   const fetchImages = async () => {
-    if (!isConfigured || !supabase) return
+    if (!isConfigured) return
     loading.value = true
-    const { data, error } = await supabase
-      .from('images')
-      .select('*')
-      .order('created_at', { ascending: true })
-    
-    if (!error) {
-      images.value = data
+    try {
+      images.value = await api.getImages()
+    } catch (e) {
+      console.error('Error cargando imágenes:', e)
     }
     loading.value = false
   }
 
   const fetchConfig = async () => {
-    if (!isConfigured || !supabase) return
-    const { data } = await supabase
-      .from('config')
-      .select('*')
-      .eq('id', 1)
-      .single()
-    
-    if (data) {
-      config.value = data
+    if (!isConfigured) return
+    try {
+      const data = await api.getConfig()
+      if (data) config.value = data
+    } catch (e) {
+      console.error('Error cargando config:', e)
     }
   }
 
   const uploadImage = async (file) => {
-    if (!isConfigured || !supabase) {
-      throw new Error('Supabase no está configurado')
+    if (!isConfigured) {
+      throw new Error('API no está configurada')
     }
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${fileExt}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('publicidad')
-      .upload(fileName, file)
-
-    if (uploadError) throw uploadError
-
-    const { data: urlData } = supabase.storage
-      .from('publicidad')
-      .getPublicUrl(fileName)
-
-    const { error: dbError } = await supabase
-      .from('images')
-      .insert([{ url: urlData.publicUrl, name: file.name }])
-
-    if (dbError) throw dbError
-    await fetchImages()
+    images.value = await api.uploadImage(file)
   }
 
   const togglePriority = async (id, currentValue) => {
-    if (!isConfigured || !supabase) return
-    await supabase
-      .from('images')
-      .update({ priority: !currentValue })
-      .eq('id', id)
+    if (!isConfigured) return
+    await api.setPriority(id, !currentValue)
     await fetchImages()
   }
 
-  const deleteImage = async (id, url) => {
-    if (!isConfigured || !supabase) return
-    const fileName = url.split('/').pop()
-    
-    await supabase.storage
-      .from('publicidad')
-      .remove([fileName])
-
-    await supabase
-      .from('images')
-      .delete()
-      .eq('id', id)
-
-    await fetchImages()
+  const deleteImage = async (id) => {
+    if (!isConfigured) return
+    images.value = await api.deleteImage(id)
   }
 
   const saveConfig = async () => {
-    if (!isConfigured || !supabase) return
-    await supabase
-      .from('config')
-      .upsert([{ id: 1, ...config.value }])
+    if (!isConfigured) return
+    try {
+      await api.saveConfig(config.value)
+    } catch (e) {
+      console.error('Error guardando config:', e)
+    }
   }
 
   onMounted(() => {

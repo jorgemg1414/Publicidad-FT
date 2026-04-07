@@ -112,28 +112,29 @@
 <script setup>
 import { ref } from 'vue'
 import { useImages } from '../composables/useImages'
-import { isConfigured } from '../supabase'
+import { api, isConfigured, getToken, setToken, clearToken } from '../api'
 
 const { images, loading, config, uploadImage, deleteImage, togglePriority, saveConfig } = useImages()
 const isDragover = ref(false)
 const uploadError = ref('')
 const fileInput = ref(null)
 const password = ref('')
-const isAuthenticated = ref(false)
+const isAuthenticated = ref(!!getToken())
 const loginError = ref(false)
 
-const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin'
-
-const login = () => {
-  if (password.value === adminPassword) {
+const login = async () => {
+  try {
+    const { token } = await api.login(password.value)
+    setToken(token)
     isAuthenticated.value = true
     loginError.value = false
-  } else {
+  } catch (e) {
     loginError.value = true
   }
 }
 
 const logout = () => {
+  clearToken()
   isAuthenticated.value = false
   password.value = ''
 }
@@ -168,7 +169,7 @@ const handleFileSelect = (e) => {
 
 const removeImage = async (img) => {
   if (confirm('¿Eliminar esta imagen?')) {
-    await deleteImage(img.id, img.url)
+    await deleteImage(img.id)
   }
 }
 </script>
